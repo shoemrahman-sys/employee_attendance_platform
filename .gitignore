@@ -3,3 +3,8 @@
 __pycache__/
 *.pyc
 .idea/
+employee_credentials.csv
+git status
+git add .
+git commit -m "Final employee attendance platform update"
+git push origin main*.log
