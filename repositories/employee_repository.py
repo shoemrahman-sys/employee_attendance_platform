@@ -69,28 +69,21 @@ def get_all_employees():
     conn.close()
     return data
 
-def update_employee_password(email, new_password_hash):
+def update_password(employee_id, password_hash):
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    try:
-        cursor.execute("""
-            UPDATE employees
-            SET password_hash = %s
-            WHERE email = %s
-        """, (new_password_hash, email))
+    cursor.execute("""
+        UPDATE employees
+        SET password_hash = %s
+        WHERE employee_id = %s
+    """, (password_hash, employee_id))
 
-        conn.commit()
-        return cursor.rowcount > 0
+    conn.commit()
 
-    except Exception as e:
-        conn.rollback()
-        print(f"Password update error: {e}")
-        return False
+    cursor.close()
+    conn.close()
 
-    finally:
-        cursor.close()
-        conn.close()
 def deactivate_employee(employee_id):
     conn = get_db_connection()
     cursor = conn.cursor()

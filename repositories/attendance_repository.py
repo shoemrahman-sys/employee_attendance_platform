@@ -52,7 +52,8 @@ def get_employee_attendance_history(employee_id):
     cursor = conn.cursor(dictionary=True)
 
     cursor.execute("""
-        SELECT 
+        SELECT
+            attendance_id,
             work_date,
             check_in,
             check_out,
@@ -138,3 +139,38 @@ def get_admin_summary():
         "avg_working_hours": summary["avg_working_hours"] or 0,
         "total_overtime": summary["total_overtime"] or 0
     }
+
+def update_attendance_correction(attendance_id, check_in, check_out):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        UPDATE attendance
+        SET 
+            check_in = %s,
+            check_out = %s,
+            working_hours = TIMESTAMPDIFF(MINUTE, %s, %s) / 60,
+            overtime_hours = GREATEST((TIMESTAMPDIFF(MINUTE, %s, %s) / 60) - 8, 0),
+            status = CASE
+                WHEN TIMESTAMPDIFF(MINUTE, %s, %s) / 60 >= 8 THEN 'Present'
+                WHEN TIMESTAMPDIFF(MINUTE, %s, %s) / 60 >= 4 THEN 'Half Day'
+                ELSE 'Absent'
+            END
+        WHERE attendance_id = %s
+    """, (
+        check_in,
+        check_out,
+        check_in,
+        check_out,
+        check_in,
+        check_out,
+        check_in,
+        check_out,
+        check_in,
+        check_out,
+        attendance_id
+    ))
+
+    conn.commit()
+    cursor.close()
+    conn.close()

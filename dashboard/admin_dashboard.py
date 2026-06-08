@@ -19,15 +19,56 @@ from services.leave_service import (
     reject_leave,
     get_leave_kpis
 )
+from services.correction_service import (
+    get_correction_requests_for_admin,
+    approve_correction,
+    reject_correction
+)
 
 from repositories.audit_repository import get_all_audit_logs
 from services.audit_service import log_action
+from services.auth_service import admin_reset_password
+
+@st.cache_data(ttl=60)
+def load_admin_summary():
+    return get_admin_summary()
+
+
+@st.cache_data(ttl=60)
+def load_attendance_records():
+    return get_all_attendance_records()
+
+
+@st.cache_data(ttl=60)
+def load_employees():
+    return get_all_employees()
+
+
+@st.cache_data(ttl=60)
+def load_leave_requests():
+    return get_leave_requests_for_admin()
+
+
+@st.cache_data(ttl=60)
+def load_leave_summary():
+    return get_leave_kpis()
+
+
+@st.cache_data(ttl=60)
+def load_audit_logs():
+    return get_all_audit_logs()
+
+
+@st.cache_data(ttl=60)
+def load_correction_requests():
+    return get_correction_requests_for_admin()
+
 
 
 def show_admin_dashboard():
     st.title("Admin Dashboard")
 
-    summary = get_admin_summary()
+    summary = load_admin_summary()
 
     col1, col2, col3, col4 = st.columns(4)
 
@@ -44,15 +85,17 @@ def show_admin_dashboard():
 
     st.divider()
 
-    tab1, tab2, tab3, tab4 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
         "Attendance Analytics",
         "Employees",
         "Leave Requests",
-        "Audit Logs"
+        "Audit Logs",
+        "Password Reset",
+        "Correction Requests"
     ])
 
     with tab1:
-        records = get_all_attendance_records()
+        records =  load_attendance_records()
 
         if records:
             df = pd.DataFrame(records)
@@ -90,7 +133,7 @@ def show_admin_dashboard():
             st.info("No attendance records found.")
 
     with tab2:
-        employees = get_all_employees()
+        employees = load_employees()
 
         if employees:
             emp_df = pd.DataFrame(employees)
@@ -149,7 +192,7 @@ def show_admin_dashboard():
                             action="Employee Deactivated",
                             description=f"Admin deactivated employee ID {selected_employee_id}."
                         )
-
+                        st.cache_data.clear()
                         st.success("Employee deactivated successfully.")
                         st.rerun()
 
@@ -173,7 +216,7 @@ def show_admin_dashboard():
                             action="Employee Activated",
                             description=f"Admin activated employee ID {selected_employee_id}."
                         )
-
+                        st.cache_data.clear()
                         st.success("Employee activated successfully.")
                         st.rerun()
         else:
@@ -182,7 +225,7 @@ def show_admin_dashboard():
     with tab3:
         st.subheader("Leave Requests")
         try:
-            leave_summary = get_leave_kpis()
+            leave_summary = load_leave_summary()
 
             col_l1, col_l2, col_l3, col_l4, col_l5 = st.columns(5)
 
@@ -198,7 +241,7 @@ def show_admin_dashboard():
             st.warning("Leave summary could not be loaded.")
 
         try:
-            leave_requests = get_leave_requests_for_admin()
+            leave_requests = load_leave_requests()
 
             if leave_requests:
                 leave_df = pd.DataFrame(leave_requests)
@@ -287,6 +330,7 @@ def show_admin_dashboard():
                             )
 
                             if success:
+                                st.cache_data.clear()
                                 st.success(message)
                                 st.rerun()
                             else:
@@ -302,6 +346,7 @@ def show_admin_dashboard():
                             )
 
                             if success:
+                                st.cache_data.clear()
                                 st.success(message)
                                 st.rerun()
                             else:
@@ -319,7 +364,7 @@ def show_admin_dashboard():
         st.subheader("Audit Logs")
 
         try:
-            logs = get_all_audit_logs()
+            logs = load_audit_logs()
 
             if logs:
                 logs_df = pd.DataFrame(logs)
@@ -373,3 +418,147 @@ def show_admin_dashboard():
         except Exception as e:
             st.error("Audit logs failed to load.")
             st.exception(e)
+
+    with tab5:
+        st.subheader("Reset Employee Password")
+
+        employees = get_all_employees()
+
+        employee_options = {
+            f"{emp['full_name']} - {emp['email']}":
+                emp["employee_id"]
+            for emp in employees
+        }
+
+        selected_employee = st.selectbox(
+            "Select Employee",
+            list(employee_options.keys())
+        )
+
+        new_password = st.text_input(
+            "Temporary Password",
+            type="password"
+        )
+
+        confirm_password = st.text_input(
+            "Confirm Password",
+            type="password"
+        )
+
+        if st.button("Reset Password"):
+
+            if new_password != confirm_password:
+                st.error("Passwords do not match.")
+
+            else:
+                employee_id = employee_options[selected_employee]
+                if employee_id == st.session_state["employee_id"]:
+                    st.error(
+                        "Use Change Password for your own account."
+                    )
+                    st.stop()
+
+                success, message = admin_reset_password(
+                    employee_id,
+                    new_password
+                )
+
+                if success:
+
+                    log_action(
+                        performed_by=st.session_state["employee_id"],
+                        target_employee_id=employee_id,
+                        action="Password Reset",
+                        description="Admin reset employee password."
+                    )
+                    st.cache_data.clear()
+
+                    st.success(message)
+
+                else:
+                    st.error(message)
+    with tab6:
+        st.subheader("Attendance Correction Requests")
+
+        correction_requests = load_correction_requests()
+
+        if correction_requests:
+            correction_df = pd.DataFrame(correction_requests)
+            st.dataframe(correction_df, use_container_width=True)
+
+            pending_requests = [
+                req for req in correction_requests
+                if req["status"] == "Pending"
+            ]
+
+            if pending_requests:
+                st.divider()
+                st.subheader("Approve / Reject Correction")
+
+                correction_options = {
+                    f"Correction ID {req['correction_id']} - {req['full_name']} - {req['work_date']}": req
+                    for req in pending_requests
+                }
+
+                selected_label = st.selectbox(
+                    "Select Pending Correction",
+                    list(correction_options.keys())
+                )
+
+                selected_request = correction_options[selected_label]
+
+                st.info(
+                    f"Employee: {selected_request['full_name']} | "
+                    f"Date: {selected_request['work_date']} | "
+                    f"Current: {selected_request['current_check_in']} - {selected_request['current_check_out']} | "
+                    f"Requested: {selected_request['requested_check_in']} - {selected_request['requested_check_out']} | "
+                    f"Reason: {selected_request['reason']}"
+                )
+
+                admin_comment = st.text_area(
+                    "Admin Comment",
+                    key="correction_admin_comment"
+                )
+
+                col_approve, col_reject = st.columns(2)
+
+                admin_id = st.session_state.get("employee_id")
+
+                with col_approve:
+                    if st.button("Approve Correction", use_container_width=True):
+                        success, message = approve_correction(
+                            correction_id=selected_request["correction_id"],
+                            admin_id=admin_id,
+                            employee_id=selected_request["employee_id"],
+                            attendance_id=selected_request["attendance_id"],
+                            requested_check_in=selected_request["requested_check_in"],
+                            requested_check_out=selected_request["requested_check_out"],
+                            admin_comment=admin_comment
+                        )
+
+                        if success:
+                            st.cache_data.clear()
+                            st.success(message)
+                            st.rerun()
+                        else:
+                            st.error(message)
+
+                with col_reject:
+                    if st.button("Reject Correction", use_container_width=True):
+                        success, message = reject_correction(
+                            correction_id=selected_request["correction_id"],
+                            admin_id=admin_id,
+                            employee_id=selected_request["employee_id"],
+                            admin_comment=admin_comment
+                        )
+
+                        if success:
+                            st.cache_data.clear()
+                            st.success(message)
+                            st.rerun()
+                        else:
+                            st.error(message)
+            else:
+                st.info("No pending correction requests.")
+        else:
+            st.info("No correction requests found.")

@@ -6,6 +6,34 @@ from services.leave_service import apply_leave, get_my_leave_history , get_my_le
 from services.audit_service import log_action
 from datetime import date
 from services.leave_service import is_employee_on_leave
+from services.correction_service import (
+    submit_correction_request,
+    get_my_correction_requests
+)
+
+@st.cache_data(ttl=60)
+def load_today_attendance(employee_id):
+    return get_today_attendance(employee_id)
+
+
+@st.cache_data(ttl=60)
+def load_attendance_history(employee_id):
+    return get_employee_attendance_history(employee_id)
+
+
+@st.cache_data(ttl=60)
+def load_my_leave_history(employee_id):
+    return get_my_leave_history(employee_id)
+
+
+@st.cache_data(ttl=60)
+def load_my_leave_kpis(employee_id):
+    return get_my_leave_kpis(employee_id)
+
+
+@st.cache_data(ttl=60)
+def load_my_correction_requests(employee_id):
+    return get_my_correction_requests(employee_id)
 
 def show_employee_dashboard():
     st.title("Employee Dashboard")
@@ -19,12 +47,11 @@ def show_employee_dashboard():
     st.markdown(f"### Welcome, {st.session_state.get('full_name', 'Employee')}")
     st.write(f"Designation: {st.session_state.get('job_title', 'N/A')}")
     on_leave_today = is_employee_on_leave(employee_id, date.today())
-    tab1, tab2 = st.tabs(["Attendance", "Leave Management"])
+    tab1, tab2, tab3 = st.tabs(["Attendance", "Leave Management", "Attendance Correction"])
 
     with tab1:
         try:
-            today = get_today_attendance(employee_id)
-
+            today = load_today_attendance(employee_id)
             if on_leave_today:
                 status = "On Leave"
             else:
@@ -61,6 +88,7 @@ def show_employee_dashboard():
                                     action="Check In",
                                     description=f"Employee ID {employee_id} checked in."
                                 )
+                                st.cache_data.clear()
                                 st.success(message)
                             else:
                                 st.warning(message)
@@ -78,6 +106,7 @@ def show_employee_dashboard():
                                     action="Check Out",
                                     description=f"Employee ID {employee_id} checked out."
                                 )
+                                st.cache_data.clear()
                                 st.success(message)
                             else:
                                 st.warning(message)
@@ -88,7 +117,7 @@ def show_employee_dashboard():
 
             st.subheader("Attendance History")
 
-            history = get_employee_attendance_history(employee_id)
+            history = load_attendance_history(employee_id)
 
             if history:
                 df = pd.DataFrame(history)
@@ -102,7 +131,7 @@ def show_employee_dashboard():
 
     with tab2:
         try:
-            leave_summary = get_my_leave_kpis(employee_id)
+            leave_summary = load_my_leave_kpis(employee_id)
 
             col_l1, col_l2, col_l3, col_l4 = st.columns(4)
 
@@ -113,7 +142,7 @@ def show_employee_dashboard():
 
             st.divider()
 
-        except Exception:
+        except Exception :
             st.warning("Leave summary could not be loaded.")
         st.subheader("Apply Leave")
 
@@ -137,6 +166,7 @@ def show_employee_dashboard():
             )
 
             if success:
+                st.cache_data.clear()
                 st.success(message)
                 st.rerun()
             else:
@@ -147,7 +177,7 @@ def show_employee_dashboard():
         st.subheader("My Leave History")
 
         try:
-            leave_history = get_my_leave_history(employee_id)
+            leave_history = load_my_leave_history(employee_id)
 
             if leave_history:
                 leave_df = pd.DataFrame(leave_history)
@@ -158,3 +188,62 @@ def show_employee_dashboard():
         except Exception as e:
             st.error("Leave history failed to load.")
             st.exception(e)
+
+    with tab3:
+        st.subheader("Request Attendance Correction")
+
+        history = load_attendance_history(employee_id)
+
+        if history:
+            attendance_options = {
+                f"ID {row['attendance_id']} | {row['work_date']} | {row['check_in']} - {row['check_out']}": row[
+                    "attendance_id"]
+                for row in history
+            }
+
+            selected_attendance = st.selectbox(
+                "Select Attendance Record",
+                list(attendance_options.keys())
+            )
+
+            attendance_id = attendance_options[selected_attendance]
+
+            requested_check_in = st.text_input(
+                "Requested Check-In DateTime",
+                placeholder="YYYY-MM-DD HH:MM:SS"
+            )
+
+            requested_check_out = st.text_input(
+                "Requested Check-Out DateTime",
+                placeholder="YYYY-MM-DD HH:MM:SS"
+            )
+
+            reason = st.text_area("Reason for Correction")
+
+            if st.button("Submit Correction Request"):
+                success, message = submit_correction_request(
+                    employee_id=employee_id,
+                    attendance_id=attendance_id,
+                    requested_check_in=requested_check_in if requested_check_in else None,
+                    requested_check_out=requested_check_out if requested_check_out else None,
+                    reason=reason
+                )
+
+                if success:
+                    st.cache_data.clear()
+                    st.success(message)
+                    st.rerun()
+                else:
+                    st.error(message)
+        else:
+            st.info("No attendance records available for correction.")
+
+        st.divider()
+
+        st.subheader("My Correction Requests")
+
+        correction_history = load_my_correction_requests(employee_id)
+        if correction_history:
+            st.dataframe(pd.DataFrame(correction_history), use_container_width=True)
+        else:
+            st.info("No correction requests found.")

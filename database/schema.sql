@@ -24,7 +24,7 @@ CREATE TABLE shifts (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE employees (
+CREATE TABLE  employees (
     employee_id INT AUTO_INCREMENT PRIMARY KEY,
     full_name VARCHAR(100) NOT NULL,
     email VARCHAR(100) NOT NULL UNIQUE,
@@ -119,6 +119,28 @@ CREATE TABLE IF NOT EXISTS leave_requests (
     FOREIGN KEY (reviewed_by)
         REFERENCES employees(employee_id)
         ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS attendance_correction_requests (
+    correction_id INT AUTO_INCREMENT PRIMARY KEY,
+    employee_id INT NOT NULL,
+    attendance_id INT NOT NULL,
+
+    requested_check_in DATETIME NULL,
+    requested_check_out DATETIME NULL,
+    reason TEXT NOT NULL,
+
+    status ENUM('Pending', 'Approved', 'Rejected') DEFAULT 'Pending',
+
+    reviewed_by INT NULL,
+    reviewed_at TIMESTAMP NULL,
+    admin_comment TEXT,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (employee_id) REFERENCES employees(employee_id),
+    FOREIGN KEY (attendance_id) REFERENCES attendance(attendance_id),
+    FOREIGN KEY (reviewed_by) REFERENCES employees(employee_id)
 );
 
 CREATE INDEX idx_attendance_work_date

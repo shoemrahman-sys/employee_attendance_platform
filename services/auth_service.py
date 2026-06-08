@@ -1,7 +1,7 @@
 from repositories.employee_repository import create_employee, get_employee_by_email
 from utils.password_utils import hash_password, verify_password
 from utils.validators import is_valid_email, is_valid_password, is_not_empty
-from repositories.employee_repository import get_employee_by_email, update_employee_password
+from repositories.employee_repository import get_employee_by_email, update_password
 
 def register_user(full_name, email, phone, dept_id, shift_id, job_title, password):
     if not is_not_empty(full_name):
@@ -43,29 +43,16 @@ def login_user(email, password):
         return employee
 
     return None
-def reset_password(email, new_password, confirm_password):
-    if not email:
-        return False, "Email is required."
 
-    if not new_password or not confirm_password:
-        return False, "Both password fields are required."
+def admin_reset_password(employee_id, new_password):
+    if len(new_password) < 6:
+        return False, "Password must be at least 6 characters."
 
-    if new_password != confirm_password:
-        return False, "Passwords do not match."
+    password_hash = hash_password(new_password)
 
-    if not is_valid_password(new_password):
-        return False, "Password must be at least 6 characters long."
+    update_password(
+        employee_id=employee_id,
+        password_hash=password_hash
+    )
 
-    employee = get_employee_by_email(email)
-
-    if not employee:
-        return False, "No account found with this email."
-
-    new_password_hash = hash_password(new_password)
-
-    updated = update_employee_password(email, new_password_hash)
-
-    if updated:
-        return True, "Password reset successful. Please login with your new password."
-
-    return False, "Password reset failed. Please try again."
+    return True, "Password reset successfully."

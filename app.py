@@ -1,5 +1,5 @@
 import streamlit as st
-from services.auth_service import login_user, register_user ,reset_password
+from services.auth_service import login_user, register_user
 from repositories.department_repository import get_active_departments
 from repositories.shift_repository import get_active_shifts
 from dashboard.employee_dashboard import show_employee_dashboard
@@ -113,41 +113,11 @@ def login_page():
             st.session_state["page"] = "Register"
             st.rerun()
 
-    with st.expander("Forgot Password?"):
-        reset_email = st.text_input("Registered Email", key="reset_email")
-        new_password = st.text_input(
-            "New Password",
-            type="password",
-            key="new_password"
-        )
-        confirm_password = st.text_input(
-            "Confirm Password",
-            type="password",
-            key="confirm_password"
-        )
-
-        if st.button("Reset Password", use_container_width=True):
-            if not reset_email or not new_password or not confirm_password:
-                st.error("Please fill all password reset fields.")
-                return
-
-            success, message = reset_password(
-                reset_email,
-                new_password,
-                confirm_password
+        with st.expander("Forgot Password?"):
+            st.info(
+                "For security reasons, password reset is handled by the administrator. "
+                "Please contact your admin to reset your password."
             )
-
-            if success:
-                log_action(
-                    performed_by=None,
-                    target_employee_id=None,
-                    action="Password Reset",
-                    description=f"Password reset successful for email: {reset_email}"
-                )
-
-                st.success(message)
-            else:
-                st.error(message)
 
 def register_page():
     st.title("Employee Registration")
