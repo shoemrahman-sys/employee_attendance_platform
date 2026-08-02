@@ -1,4 +1,4 @@
-USE railway;
+USE employee_attendance;
 
 DROP TABLE IF EXISTS attendance;
 DROP TABLE IF EXISTS employees;
@@ -175,3 +175,25 @@ INSERT INTO shifts (
 ('Morning Shift', '09:00:00', '18:00:00', 8.00, 15),
 ('Evening Shift', '14:00:00', '23:00:00', 8.00, 15),
 ('Night Shift', '22:00:00', '06:00:00', 8.00, 15);
+
+CREATE TABLE IF NOT EXISTS attendance_correction_requests (
+    correction_id INT AUTO_INCREMENT PRIMARY KEY,
+    employee_id INT NOT NULL,
+    attendance_id INT NOT NULL,
+
+    requested_check_in DATETIME NULL,
+    requested_check_out DATETIME NULL,
+    reason TEXT NOT NULL,
+
+    status ENUM('Pending', 'Approved', 'Rejected') DEFAULT 'Pending',
+
+    reviewed_by INT NULL,
+    reviewed_at TIMESTAMP NULL,
+    admin_comment TEXT,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (employee_id) REFERENCES employees(employee_id),
+    FOREIGN KEY (attendance_id) REFERENCES attendance(attendance_id),
+    FOREIGN KEY (reviewed_by) REFERENCES employees(employee_id)
+);
