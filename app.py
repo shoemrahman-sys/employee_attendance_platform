@@ -75,7 +75,10 @@ def login_page():
                 st.error("Please enter both email and password.")
                 return
 
-            employee = login_user(email, password)
+            success, result = login_user(email, password)
+
+            if success:
+                employee = result
 
             if employee:
                 st.session_state["logged_in"] = True
@@ -104,8 +107,7 @@ def login_page():
                     description=f"Failed login attempt for email: {email}"
                 )
 
-                st.error("Invalid email or password")
-
+                st.error(result)
 
 
     with col2:
@@ -119,11 +121,20 @@ def login_page():
                 "Please contact your admin to reset your password."
             )
 
+@st.cache_data(ttl=3600)
+def load_departments():
+    return get_active_departments()
+
+
+@st.cache_data(ttl=3600)
+def load_shifts():
+    return get_active_shifts()
+
 def register_page():
     st.title("Employee Registration")
 
-    departments = get_active_departments()
-    shifts = get_active_shifts()
+    departments = load_departments()
+    shifts = load_shifts()
 
     if not departments or not shifts:
         st.error("Departments or shifts are missing. Please run schema.sql first.")

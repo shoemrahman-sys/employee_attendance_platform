@@ -1,23 +1,41 @@
-# Virtual Environment
-.venv/
-
-# Environment variables
-.env
-
-# Python cache
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+
+# Virtual Environments
+.venv/
+venv/
+env/
+
+# Environment Variables
+.env
 
 # IDE
 .idea/
 .vscode/
 
+# Test & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
 # Logs
 *.log
 
-# CSV files containing sensitive data
-employee_credentials.csv
-
-# OS files
+# OS
 .DS_Store
 Thumbs.db
+
+# Local project files
+folders.txt
+project_tree.txt
+
+# Database dumps
+*.sql
+
+# Keep schema only
+!database/schema.sql
+
+# Ignore generated credentials
+database/employee_credentials.csv

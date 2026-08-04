@@ -35,6 +35,24 @@ def load_my_leave_kpis(employee_id):
 def load_my_correction_requests(employee_id):
     return get_my_correction_requests(employee_id)
 
+@st.cache_data(ttl=60)
+def load_leave_status(employee_id):
+    return is_employee_on_leave(employee_id, date.today())
+
+@st.cache_data
+def attendance_dataframe(history):
+    return pd.DataFrame(history)
+
+
+@st.cache_data
+def leave_dataframe(history):
+    return pd.DataFrame(history)
+
+
+@st.cache_data
+def correction_dataframe(history):
+    return pd.DataFrame(history)
+
 def show_employee_dashboard():
     st.title("Employee Dashboard")
 
@@ -43,10 +61,11 @@ def show_employee_dashboard():
     if not employee_id:
         st.error("Employee ID missing. Please logout and login again.")
         return
+    attendance_history = load_attendance_history(employee_id)
 
     st.markdown(f"### Welcome, {st.session_state.get('full_name', 'Employee')}")
     st.write(f"Designation: {st.session_state.get('job_title', 'N/A')}")
-    on_leave_today = is_employee_on_leave(employee_id, date.today())
+    on_leave_today = load_leave_status(employee_id)
     tab1, tab2, tab3 = st.tabs(["Attendance", "Leave Management", "Attendance Correction"])
 
     with tab1:
@@ -88,7 +107,9 @@ def show_employee_dashboard():
                                     action="Check In",
                                     description=f"Employee ID {employee_id} checked in."
                                 )
-                                st.cache_data.clear()
+                                load_today_attendance.clear()
+                                load_attendance_history.clear()
+                                load_leave_status.clear()
                                 st.success(message)
                             else:
                                 st.warning(message)
@@ -106,7 +127,8 @@ def show_employee_dashboard():
                                     action="Check Out",
                                     description=f"Employee ID {employee_id} checked out."
                                 )
-                                st.cache_data.clear()
+                                load_today_attendance.clear()
+                                load_attendance_history.clear()
                                 st.success(message)
                             else:
                                 st.warning(message)
@@ -117,11 +139,13 @@ def show_employee_dashboard():
 
             st.subheader("Attendance History")
 
-            history = load_attendance_history(employee_id)
+            history = attendance_history
 
             if history:
-                df = pd.DataFrame(history)
-                st.dataframe(df, use_container_width=True)
+                st.dataframe(
+                    attendance_dataframe(history),
+                    use_container_width=True
+                )
             else:
                 st.info("No attendance history found.")
 
@@ -166,7 +190,9 @@ def show_employee_dashboard():
             )
 
             if success:
-                st.cache_data.clear()
+                load_my_leave_history.clear()
+                load_my_leave_kpis.clear()
+                load_leave_status.clear()
                 st.success(message)
                 st.rerun()
             else:
@@ -180,8 +206,10 @@ def show_employee_dashboard():
             leave_history = load_my_leave_history(employee_id)
 
             if leave_history:
-                leave_df = pd.DataFrame(leave_history)
-                st.dataframe(leave_df, use_container_width=True)
+                st.dataframe(
+                    leave_dataframe(leave_history),
+                    use_container_width=True
+                )
             else:
                 st.info("No leave requests found.")
 
@@ -192,7 +220,7 @@ def show_employee_dashboard():
     with tab3:
         st.subheader("Request Attendance Correction")
 
-        history = load_attendance_history(employee_id)
+        history = attendance_history
 
         if history:
             attendance_options = {
@@ -230,7 +258,8 @@ def show_employee_dashboard():
                 )
 
                 if success:
-                    st.cache_data.clear()
+                    load_my_correction_requests.clear()
+                    load_attendance_history.clear()
                     st.success(message)
                     st.rerun()
                 else:
@@ -243,7 +272,11 @@ def show_employee_dashboard():
         st.subheader("My Correction Requests")
 
         correction_history = load_my_correction_requests(employee_id)
+
         if correction_history:
-            st.dataframe(pd.DataFrame(correction_history), use_container_width=True)
+            st.dataframe(
+                correction_dataframe(correction_history),
+                use_container_width=True
+            )
         else:
             st.info("No correction requests found.")

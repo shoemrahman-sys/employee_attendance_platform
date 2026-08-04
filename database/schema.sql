@@ -197,3 +197,10 @@ CREATE TABLE IF NOT EXISTS attendance_correction_requests (
     FOREIGN KEY (attendance_id) REFERENCES attendance(attendance_id),
     FOREIGN KEY (reviewed_by) REFERENCES employees(employee_id)
 );
+
+CREATE TABLE login_attempts (
+    email VARCHAR(255) PRIMARY KEY,
+    failed_attempts INT NOT NULL DEFAULT 0,
+    locked_until DATETIME NULL,
+    last_attempt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

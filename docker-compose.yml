@@ -1,0 +1,12 @@
+services:
+  employee-attendance-app:
+    build: .
+    container_name: employee-attendance-platform
+
+    ports:
+      - "8501:8501"
+
+    env_file:
+      - .env
+
+    restart: unless-stopped
